@@ -1,10 +1,21 @@
 package com.example.bullethell;
 
+import android.content.Context;
+import android.content.res.AssetFileDescriptor;
+import android.content.res.AssetManager;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
 import android.media.SoundPool;
+import android.os.Build;
+import android.util.Log;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+
+import java.io.IOException;
 
 class BulletHellGame extends SurfaceView implements Runnable {
 
@@ -38,5 +49,133 @@ class BulletHellGame extends SurfaceView implements Runnable {
     private SoundPool mSP;
     private int mBeepID = -1;
     private int mTeleportID = -1;
+
+
+    // Constructor method that gets called from MainActivity
+    public BulletHellGame (Context context, int x, int y) {
+        super (context);
+
+        mScreenX = x;
+        mScreenY = y;
+        // Font is 5% of the screen width
+        mFontSize = mScreenX / 20;
+        // Margin is 2% of the screen width
+        mFontMargin = mScreenX / 50;
+
+        mOurHolder = getHolder();
+        mPaint = new Paint();
+
+        // Initialize the SoundPool
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
+            AudioAttributes audioAttributes = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
+
+            mSP = new SoundPool.Builder().setMaxStreams(5).setAudioAttributes(audioAttributes).build();
+        } else {
+            mSP = new SoundPool(5, AudioManager.STREAM_MUSIC, 0);
+        }
+
+        try{
+            AssetManager assetManager = context.getAssets();
+            AssetFileDescriptor descriptor;
+
+            descriptor = assetManager.openFd("beep.wav");
+            mBeepID = mSP.load(descriptor, 0);
+
+            descriptor = assetManager.openFd("teleport.wav");
+            mTeleportID = mSP.load(descriptor, 0);
+        }catch (IOException e) {
+            Log.e("error", "failed to load sound files");
+        }
+
+        startGame();
+
+
+    }
+
+    // Called to start a new game
+    public void startGame(){
+
+    }
+
+    // Spawns another bullet
+    private void spawnBullet(){
+
+    }
+
+    // Handles the game loop
+    @Override
+    public void run(){
+        while (mPlaying) {
+
+            long frameStartTime = System.currentTimeMillis();
+
+                if (!mPaused){
+                    update();
+                    // Now all the bullets have been moved we can detect and collisions
+                    detectCollisions();
+
+                }
+                draw();
+
+                long timeThisFrame = System.currentTimeMillis() - frameStartTime;
+
+                if (timeThisFrame >=1 ){
+                    mFPS = MILLIS_IN_SECOND / timeThisFrame;
+                }
+        }
+    }
+
+    // Update all the game objects
+    private void update() {
+
+    }
+
+    private void detectCollisions() {
+
+    }
+
+    private void draw(){
+        if (mOurHolder.getSurface().isValid()){
+            mCanvas = mOurHolder.lockCanvas();
+            mCanvas.drawColor(Color.argb(255,243,111,36));
+            mPaint.setColor(Color.argb(255,255,255,255));
+
+            //All the drawing color will go here
+            if (mDebugging) {
+                printDebuggingText();
+            }
+
+            mOurHolder.unlockCanvasAndPost(mCanvas);
+        }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent motionEvent){
+        return true;
+    }
+
+    public void pause(){
+        mPlaying = false;
+        try {
+            mGameThread.join();
+        } catch (InterruptedException e) {
+            Log.e("Error: ", "joining thread");
+        }
+    }
+
+    public void resume(){
+        mPlaying = true;
+        mGameThread = new Thread(this);
+        mGameThread.start();
+    }
+
+    private void printDebuggingText() {
+        int debugSize = 35;
+        int debugStart = 150;
+        mPaint.setTextSize(debugSize);
+
+        mCanvas.drawText("FPS: " + mFPS, 10, debugStart + debugSize, mPaint);
+    }
 
 }
