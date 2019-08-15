@@ -51,6 +51,8 @@ class BulletHellGame extends SurfaceView implements Runnable {
     private int mTeleportID = -1;
 
 
+
+
     // Constructor method that gets called from MainActivity
     public BulletHellGame (Context context, int x, int y) {
         super (context);
@@ -87,6 +89,8 @@ class BulletHellGame extends SurfaceView implements Runnable {
         }catch (IOException e) {
             Log.e("error", "failed to load sound files");
         }
+
+
 
         startGame();
 
@@ -129,6 +133,7 @@ class BulletHellGame extends SurfaceView implements Runnable {
     // Update all the game objects
     private void update() {
 
+
     }
 
     private void detectCollisions() {
@@ -142,6 +147,8 @@ class BulletHellGame extends SurfaceView implements Runnable {
             mPaint.setColor(Color.argb(255,255,255,255));
 
             //All the drawing color will go here
+
+
             if (mDebugging) {
                 printDebuggingText();
             }
@@ -152,6 +159,7 @@ class BulletHellGame extends SurfaceView implements Runnable {
 
     @Override
     public boolean onTouchEvent(MotionEvent motionEvent){
+
         return true;
     }
 
