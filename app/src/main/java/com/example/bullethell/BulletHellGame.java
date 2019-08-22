@@ -6,6 +6,7 @@ import android.content.res.AssetManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.SoundPool;
@@ -19,6 +20,8 @@ import java.io.IOException;
 import java.util.Random;
 
 class BulletHellGame extends SurfaceView implements Runnable {
+
+    // region member variables
 
     // Debugging
     boolean mDebugging = true;
@@ -57,6 +60,19 @@ class BulletHellGame extends SurfaceView implements Runnable {
     private int mSpawnRate = 1;
     private Random mRandomX = new Random();
     private Random mRandomY = new Random();
+
+    private Bob mBob;
+    private boolean mHit = false;
+    private int mNumHits;
+    private int mShield = 10;
+
+    // Lets start the game
+    private long mStartGameTime;
+    private long mBestGameTime;
+    private long mTotalGameTime;
+
+    // endregion
+
 
 
 
@@ -105,6 +121,8 @@ class BulletHellGame extends SurfaceView implements Runnable {
             mBullets[i] = new Bullet (mScreenX);
         }
 
+        mBob = new Bob(context, mScreenX, mScreenY);
+
         startGame();
 
 
@@ -112,6 +130,15 @@ class BulletHellGame extends SurfaceView implements Runnable {
 
     // Called to start a new game
     public void startGame(){
+
+        mNumHits = 0;
+        mNumBullets = 0;
+        mHit = false;
+
+        // Did the player survive longer than previously
+        if (mTotalGameTime > mBestGameTime) {
+            mBestGameTime = mTotalGameTime;
+        }
 
     }
 
@@ -126,28 +153,35 @@ class BulletHellGame extends SurfaceView implements Runnable {
         int velocityX;
         int velocityY;
 
-        // This code will change in chapter 13
-
-        // Pick a random point on the screen
-        // to spawn a bullet
-        spawnX = mRandomX.nextInt(mScreenX);
-        spawnY = mRandomY.nextInt(mScreenY);
-
-        // The horizontal direction of travel
-        velocityX = 1;
-        // Randomly make velocityX negative
-        if(mRandomX.nextInt(2)==0){
+        // Don't spawn close to Bob
+        if (mBob.getRect().centerX() < mScreenX / 2) {
+            // Bob is on the left, spawn bullet on the right
+            spawnX = mRandomX.nextInt(mScreenX / 2) + mScreenX / 2;
+            // Head right
+            velocityX = 1;
+        } else {
+            // Bob is on the right, spawn bullet on the left
+            spawnX = mRandomX.nextInt(mScreenX / 2);
+            // Head left
             velocityX = -1;
         }
-        velocityY = 1;
-        // Randomly make velocityY negative
-        if(mRandomY.nextInt(2)==0){
+
+        if (mBob.getRect().centerY() < mScreenY / 2) {
+            // Bob is on the top, spawn bullet on the bottom
+            spawnY = mRandomY.nextInt(mScreenY / 2) + mScreenY / 2;
+            // Head down
+            velocityY = 1;
+        } else {
+            // Bob is on the bottom, spawn bullet on the top
+            spawnY = mRandomY.nextInt(mScreenY / 2);
+            // Head up
             velocityY = -1;
         }
 
+
+
         // Spawn the bullet
-        mBullets[mNumBullets - 1].
-                spawn(spawnX, spawnY, velocityX, velocityY);
+        mBullets[mNumBullets - 1].spawn(spawnX, spawnY, velocityX, velocityY);
 
 
     }
@@ -199,6 +233,33 @@ class BulletHellGame extends SurfaceView implements Runnable {
             }
         }
 
+        /*
+         Has a bullet hit bob?
+         Check each bullet for an intersection with Bob's RectF
+        */
+        for (int i = 0; i < mNumBullets; i++) {
+            if (RectF.intersects(mBullets[i].getRect(), mBob.getRect())){
+                // Bob has been hit
+                mSP.play(mBeepID, 1, 1, 0, 0, 1);
+
+                // This flags that a hit occurred so that the draw method "knows" as well
+                mHit = true;
+
+                // Rebound the bullet that collided
+                mBullets[i].reverseXVelocity();
+                mBullets[i].reverseYVelocity();
+
+                // keep track of the number of hits
+                mNumHits++;
+                if (mNumHits == mShield) {
+                    mPaused = true;
+                    mTotalGameTime = System.currentTimeMillis() - mStartGameTime;
+
+                    startGame();
+                }
+            }
+        }
+
     }
 
     private void draw(){
@@ -210,6 +271,17 @@ class BulletHellGame extends SurfaceView implements Runnable {
             //All the drawing color will go here
             for(int i = 0; i < mNumBullets; i++){
                 mCanvas.drawRect(mBullets[i].getRect(), mPaint);
+            }
+
+            mCanvas.drawBitmap(mBob.getBitmap(), mBob.getRect().left, mBob.getRect().top, mPaint);
+
+            mPaint.setTextSize(mFontSize);
+            mCanvas.drawText("Bullets: " + mNumBullets + " Shield: " + (mShield - mNumHits) +
+                    " Best time: " + mBestGameTime / MILLIS_IN_SECOND, mFontMargin, mFontSize, mPaint);
+
+            // Don't draw the current time when paused
+            if (!mPaused) {
+                mCanvas.drawText("Seconds Survived: " + ((System.currentTimeMillis() - mStartGameTime) / MILLIS_IN_SECOND), mFontMargin, mFontMargin * 30, mPaint);
             }
 
 
@@ -224,8 +296,25 @@ class BulletHellGame extends SurfaceView implements Runnable {
     @Override
     public boolean onTouchEvent(MotionEvent motionEvent){
 
-        mPaused = false;
-        spawnBullet();
+        switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
+
+            case MotionEvent.ACTION_DOWN:
+                if (mPaused) {
+                    mStartGameTime = System.currentTimeMillis();
+                    mPaused = false;
+                }
+
+                if (mBob.teleport(motionEvent.getX(), motionEvent.getY())) {
+                    mSP.play(mTeleportID,1,1,0,0,1);
+                }
+                break;
+
+            case MotionEvent.ACTION_UP:
+
+                mBob.setTelePortAvailable();
+                spawnBullet();
+                break;
+        }
 
 
         return true;
@@ -252,6 +341,13 @@ class BulletHellGame extends SurfaceView implements Runnable {
         mPaint.setTextSize(debugSize);
 
         mCanvas.drawText("FPS: " + mFPS, 10, debugStart + debugSize, mPaint);
+        mCanvas.drawText("Bob left: " + mBob.getRect().left, 10, debugStart + debugSize *2, mPaint);
+        mCanvas.drawText("Bob top: " + mBob.getRect().top, 10, debugStart + debugSize *3, mPaint);
+        mCanvas.drawText("Bob right: " + mBob.getRect().right, 10, debugStart + debugSize *4, mPaint);
+        mCanvas.drawText("Bob bottom: " + mBob.getRect().bottom, 10, debugStart + debugSize *5, mPaint);
+        mCanvas.drawText("Bob centerX: " + mBob.getRect().centerX(), 10, debugStart + debugSize *6, mPaint);
+        mCanvas.drawText("Bob centerY: " + mBob.getRect().centerY(), 10, debugStart + debugSize *7, mPaint);
+
     }
 
 }

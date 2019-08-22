@@ -1,6 +1,6 @@
 package com.example.bullethell;
 
-import android.graphics.Rect;
+
 import android.graphics.RectF;
 
 class Bullet {
