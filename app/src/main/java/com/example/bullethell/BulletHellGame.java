@@ -17,6 +17,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.Random;
 
 class BulletHellGame extends SurfaceView implements Runnable {
@@ -58,8 +59,8 @@ class BulletHellGame extends SurfaceView implements Runnable {
     private Bullet[] mBullets = new Bullet[10000];
     private int mNumBullets = 0;
     private int mSpawnRate = 1;
-    private Random mRandomX = new Random();
-    private Random mRandomY = new Random();
+    private Random mRandomX = new SecureRandom();
+    private Random mRandomY = new SecureRandom();
 
     private Bob mBob;
     private boolean mHit = false;
